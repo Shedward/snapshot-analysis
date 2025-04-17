@@ -7,12 +7,13 @@ app = marimo.App(width="medium", app_title="Snapshot тестирование")
 @app.cell
 def _():
     import os
+    import re
     import marimo as mo
     import pandas as pd
     import PIL as pl
     import numpy as np
     import itertools
-    return itertools, mo, np, os, pd, pl
+    return itertools, mo, np, os, pd, pl, re
 
 
 @app.cell
@@ -61,22 +62,45 @@ def _(DATA_DIR, dirs, os, pl):
         draw.rectangle([0, 0, image.width, 90], fill=(255, 0, 255, 255))
         return image
 
+    def crop_bottom_1000(image):
+        width, height = image.size
+        top = max(0, height - 1000)  # Avoid negative crop if image is shorter
+        return image.crop((0, top, width, height))
+
     # copy_component("SelectTestSuit", "SelectTestSuitWithoutStatusBar", transforms=[cover_statusbar])
-    return copy_component, cover_statusbar
+    # copy_component("SelectTestSuit", "SelectTestSuitOnlyBottomSheet", transforms=[crop_bottom_1000])
+    # copy_component("SelectTestSuit", "SelectTestSuit", transforms=[crop_bottom_1000])
+    return copy_component, cover_statusbar, crop_bottom_1000
 
 
 @app.cell
-def _(DATA_DIR, os, pd):
+def _(DATA_DIR, os, pd, re):
     # Загружаем собранные снапшоты
 
     def dirs(path):
         dirs = os.listdir(path)
         return [d for d in dirs if not d.startswith(".")]
 
+    def extract_key_values(path):
+        with open(path, encoding="utf-8") as f:
+            text = f.read()
+    
+        pattern = r'^\s*([\w\s\(\)-]+):\s+(.+)$'
+        matches = re.findall(pattern, text, re.MULTILINE)
+        return dict(matches)
+
+    def extract_machine_info(path):
+        hardware = extract_key_values(path + "/Report/hardware.txt")
+        software = extract_key_values(path + "/Report/sw_vers.txt")
+        return hardware | software
+    
+
     def load_snapshots(data_dir=DATA_DIR):
         items = []
-        for report in dirs(data_dir):
-            runs_dir = data_dir + "/" + report + "/Report/Runs"
+        machines = []
+        for machine in dirs(data_dir):
+            runs_dir = data_dir + "/" + machine + "/Report/Runs"
+            machines.append(extract_machine_info(data_dir + "/" + machine) | {"Machine": machine})
             for run in dirs(runs_dir):
                 syms_dir = runs_dir + "/" + run + "/Snapshots"
                 for sym in dirs(syms_dir):
@@ -86,18 +110,32 @@ def _(DATA_DIR, os, pd):
                         for image in dirs(images_dir):
                             image_path = images_dir + "/" + image
                             items.append({
-                                "Machine": report,
+                                "Machine": machine,
                                 "Commit": run,
                                 "Sym": sym,
                                 "Component": component,
                                 "ImageId": image,
                                 "Snapshot": image_path
                             })
-        df = pd.DataFrame(items)
-        return df
+        snaps = pd.DataFrame(items)
+        machines = pd.DataFrame(machines)
+        return (snaps, machines)
 
-    SNAPS = load_snapshots()
-    return SNAPS, dirs, load_snapshots
+    (SNAPS, MACHINES) = load_snapshots()
+    return (
+        MACHINES,
+        SNAPS,
+        dirs,
+        extract_key_values,
+        extract_machine_info,
+        load_snapshots,
+    )
+
+
+@app.cell
+def _(MACHINES):
+    MACHINES
+    return
 
 
 @app.cell
@@ -268,9 +306,16 @@ def _(compare_combinations_by, compare_pixel_by_pixel_total):
 
 
 @app.cell
-def _(diff_by_machines):
-    diff_by_machines.groupby("Component").sum()
-    return
+def _(diff_by_machines, pd):
+    def adjacent_comparation(diff):
+        diff = diff.sum(axis=0)
+        index = diff.index.str.split(' x ').map(tuple)
+        index = pd.MultiIndex.from_tuples(index, names=["from", "to"])
+        diff.index = index
+        return diff.unstack(level='from')
+
+    adjacent_comparation(diff_by_machines)
+    return (adjacent_comparation,)
 
 
 @app.cell
