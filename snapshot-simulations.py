@@ -166,7 +166,14 @@ def _(itertools, pd, snaps_by):
 
 @app.cell
 def _(compare_adjacent_by, compare_pixel_by_pixel_total):
-    compare_adjacent_by("Sym", method=compare_pixel_by_pixel_total).sum(axis=0)
+    diff_by_commits = compare_adjacent_by("Commit", method=compare_pixel_by_pixel_total)
+    diff_by_commits
+    return (diff_by_commits,)
+
+
+@app.cell
+def _(diff_by_commits):
+    diff_by_commits.sum(axis=0)
     return
 
 
