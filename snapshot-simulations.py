@@ -1,7 +1,11 @@
 import marimo
 
 __generated_with = "0.11.31"
-app = marimo.App(width="medium", app_title="Snapshot тестирование")
+app = marimo.App(
+    width="medium",
+    app_title="Snapshot тестирование",
+    layout_file="layouts/snapshot-simulations.slides.json",
+)
 
 
 @app.cell
@@ -13,7 +17,8 @@ def _():
     import PIL as pl
     import numpy as np
     import itertools
-    return itertools, mo, np, os, pd, pl, re
+    import xml.etree.ElementTree as ET
+    return ET, itertools, mo, np, os, pd, pl, re
 
 
 @app.cell
@@ -28,7 +33,7 @@ def _():
     return (DATA_DIR,)
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(DATA_DIR, dirs, os, pl):
     # Методы обработки данных
 
@@ -73,8 +78,24 @@ def _(DATA_DIR, dirs, os, pl):
     return copy_component, cover_statusbar, crop_bottom_1000
 
 
-@app.cell
-def _(DATA_DIR, os, pd, re):
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(
+        r"""
+        ## Собираем данные 
+
+        - Были выбраны 20 коммитов в периоде с начала февраля по конец марта
+        - Были выбраны несколько компонентов: `Text`, `Button`, `Input`, `Chips` и `Select`
+        - Для них были написаны тесты - `Text`, `Button`, `Input`, `Chips` - через UnitTest'ы, `Select` - через UITest
+        - Скриптом был прогнаны тесты для всех 20 коммитов вподряд
+        - Планом на Bamboo скрипт был прогнан на 5ти машинах на CI
+        """
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def _(DATA_DIR, ET, os, pd, re):
     # Загружаем собранные снапшоты
 
     def dirs(path):
@@ -93,18 +114,36 @@ def _(DATA_DIR, os, pd, re):
         hardware = extract_key_values(path + "/Report/hardware.txt")
         software = extract_key_values(path + "/Report/sw_vers.txt")
         return hardware | software
+
+    def extract_test_times(path):
+        tree = ET.parse(path + "/TestReports/UITestsJUnitReport.xml" )
+        root = tree.getroot()
+
+        test_times = {}
+
+        for testcase in root.iter('testcase'):
+            name = testcase.attrib.get('classname') or testcase.attrib.get('name')
+            time = float(testcase.attrib.get('time', 0))
+            if name:
+                test_times[name] = time
+
+        return test_times
     
 
     def load_snapshots(data_dir=DATA_DIR):
         items = []
         machines = []
+        test_time = []
         for machine in dirs(data_dir):
-            runs_dir = data_dir + "/" + machine + "/Report/Runs"
-            machines.append(extract_machine_info(data_dir + "/" + machine) | {"Machine": machine})
+            machine_dir = data_dir + "/" + machine
+            runs_dir = machine_dir + "/Report/Runs"
+            machines.append(extract_machine_info(machine_dir) | {"Machine": machine})
             for run in dirs(runs_dir):
                 syms_dir = runs_dir + "/" + run + "/Snapshots"
                 for sym in dirs(syms_dir):
-                    snapshots_dir = syms_dir + "/" + sym +  "/__Snapshots__"
+                    sym_dir = syms_dir + "/" + sym
+                    snapshots_dir = sym_dir +  "/__Snapshots__"
+                    test_time.append(extract_test_times(sym_dir) | {"Machine": machine, "Commit": run, "Sym": sym})
                     for component in dirs(snapshots_dir):
                         images_dir = snapshots_dir + "/" + component
                         for image in dirs(images_dir):
@@ -119,26 +158,23 @@ def _(DATA_DIR, os, pd, re):
                             })
         snaps = pd.DataFrame(items)
         machines = pd.DataFrame(machines)
-        return (snaps, machines)
+        test_time = pd.DataFrame(test_time)
+        return (snaps, machines, test_time)
 
-    (SNAPS, MACHINES) = load_snapshots()
+    (SNAPS, MACHINES, TEST_TIME) = load_snapshots()
     return (
         MACHINES,
         SNAPS,
+        TEST_TIME,
         dirs,
         extract_key_values,
         extract_machine_info,
+        extract_test_times,
         load_snapshots,
     )
 
 
-@app.cell
-def _(MACHINES):
-    MACHINES
-    return
-
-
-@app.cell
+@app.cell(hide_code=True)
 def _(SNAPS, mo):
     # Данные
 
@@ -151,6 +187,7 @@ def _(SNAPS, mo):
 
     mo.vstack([
         mo.md("## Собранные данные"),
+        mo.md("### Снапшоты"),
         mo.hstack([
             stat_info("Machine", title="Тачек"),
             stat_info("Sym", title="Симуляторов", caption="*Только на одной тачке"),
@@ -158,12 +195,59 @@ def _(SNAPS, mo):
             stat_info("ImageId", title="Снапшотов в прогоне"),
             stat_info("Snapshot", title="Всего снапшотов")
         ]),
-        mo.ui.table(data=SNAPS)
+        mo.ui.table(data=SNAPS),
     ])
     return (stat_info,)
 
 
+@app.cell(hide_code=True)
+def _(MACHINES, mo):
+    mo.vstack([
+        mo.md("## Собранные данные"),
+        mo.md("### Тачки"),
+        mo.ui.table(data=MACHINES, freeze_columns_left=["Machine"])
+    ])
+    return
+
+
 @app.cell
+def _(TEST_TIME, mo):
+    mo.vstack([
+        mo.md("## Собранные данные"),
+        mo.md("### Время отдельных тестов"),
+        mo.ui.table(data=TEST_TIME)
+    ])
+    return
+
+
+@app.cell
+def _(TEST_TIME, mo, pd):
+    def clean_tests_time(df, prefix="ApplicantHHUITests"):
+        for col in df.columns:
+            if col.startswith(f"{prefix}."):
+                base_col = col[len(prefix)+1:]
+                df[base_col] = df.get(base_col).combine_first(df[col]) if base_col in df.columns else df[col]
+                df.drop(columns=[col], inplace=True)
+        all_components = ["ButtonSnapshotTests", "ChipsSnapshotTests", "InputSnapshotTests", "TextSnapshotTests", "SelectTestSuite"]
+        df = df[all_components + ["Machine", "Commit", "Sym"]]
+        df = df.set_index(["Machine", "Commit", "Sym"])
+        return df
+
+    test_time = clean_tests_time(TEST_TIME)
+
+
+
+    mo.vstack([
+        mo.md("### Отчищенное время прогонов"),
+        mo.ui.table(data=test_time),
+
+        mo.md("### Время по компонентам (но по факту это без сравнения)"),
+        mo.ui.table(data=pd.DataFrame({"Mean": test_time.mean(), "Rel. Std": test_time.std() / test_time.mean() * 100.0}))
+    ])
+    return clean_tests_time, test_time
+
+
+@app.cell(hide_code=True)
 def _(SNAPS):
     # Селекторы данных
 
@@ -174,7 +258,7 @@ def _(SNAPS):
     return (snaps_by,)
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(np, pd, pl):
     # Способы сравнивания снапшотов
 
@@ -221,7 +305,18 @@ def _(np, pd, pl):
         image2 = pl.Image.open(image_path2).convert("RGB")
 
         if image1.size != image2.size:
-            raise ValueError("Images must be the same size to compare")
+            max_width = max(image1.width, image2.width)
+            max_height = max(image1.height, image2.height)
+    
+            def pad_image(image, target_width, target_height):
+                padded = pl.Image.new("RGB", (target_width, target_height), (255, 0, 255))
+                padded.paste(image, (0, 0))
+                return padded
+    
+            image1_padded = pad_image(image1, max_width, max_height)
+            image2_padded = pad_image(image2, max_width, max_height)
+            image1 = image1_padded
+            image2 = image2_padded
 
         arr1 = np.asarray(image1)
         arr2 = np.asarray(image2)
@@ -250,7 +345,7 @@ def _(np, pd, pl):
     )
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(SNAPS, itertools, pd, snaps_by):
     # Алгоритмы сравниваний
 
@@ -288,25 +383,45 @@ def _(SNAPS, itertools, pd, snaps_by):
 @app.cell
 def _(compare_adjacent_by, compare_pixel_by_pixel_total):
     diff_by_commits = compare_adjacent_by("Commit", method=compare_pixel_by_pixel_total)
-    diff_by_commits
     return (diff_by_commits,)
 
 
-@app.cell
-def _(diff_by_commits):
-    diff_by_commits.groupby("Component").sum()
+@app.cell(hide_code=True)
+def _(diff_by_commits, mo):
+    mo.vstack([
+        mo.md("## Разница по коммитам"),
+        mo.ui.table(data=diff_by_commits.groupby("Component").sum())
+    ])
     return
 
 
 @app.cell
+def _(compare_adjacent_by, compare_pixel_by_pixel_diff):
+    diff_images_by_commits = compare_adjacent_by(
+        "Commit", 
+        method=compare_pixel_by_pixel_diff
+    )
+    return (diff_images_by_commits,)
+
+
+@app.cell(hide_code=True)
+def _(diff_images_by_commits, mo):
+    mo.vstack([
+        mo.md("## Разница по коммитам"),
+        mo.md("В картинках"),
+        mo.ui.table(data=diff_images_by_commits)
+    ])
+    return
+
+
+@app.cell(hide_code=True)
 def _(compare_combinations_by, compare_pixel_by_pixel_total):
     diff_by_machines = compare_combinations_by("Machine", method=compare_pixel_by_pixel_total)
-    diff_by_machines
     return (diff_by_machines,)
 
 
-@app.cell
-def _(diff_by_machines, pd):
+@app.cell(hide_code=True)
+def _(diff_by_machines, mo, pd):
     def adjacent_comparation(diff):
         diff = diff.sum(axis=0)
         index = diff.index.str.split(' x ').map(tuple)
@@ -314,7 +429,10 @@ def _(diff_by_machines, pd):
         diff.index = index
         return diff.unstack(level='from')
 
-    adjacent_comparation(diff_by_machines)
+    mo.vstack([
+        mo.md("## Отличие между тачками"),
+        mo.ui.table(data=adjacent_comparation(diff_by_machines))
+    ])
     return (adjacent_comparation,)
 
 
