@@ -3,11 +3,7 @@
 import marimo
 
 __generated_with = "0.13.0"
-app = marimo.App(
-    width="medium",
-    app_title="Snapshot тестирование",
-    auto_download=["html"],
-)
+app = marimo.App(width="medium", app_title="Snapshot тестирование")
 
 
 @app.cell(hide_code=True)
@@ -250,7 +246,7 @@ def _(mo):
 def _(mo):
     mo.md(
         r"""
-        ### Тесты под компоненты-экраны (Se≤ctSelect)
+        ### Тесты под компоненты-экраны (Select)
 
         - UITest в UITests/Main
         - Работает через системный XCUIScreenshotProviding который просто делает скриншоты
@@ -671,12 +667,6 @@ def _(diff_by_machines):
     return
 
 
-@app.cell
-def _(mo):
-    mo.md(r"""Видим что,""")
-    return
-
-
 @app.cell(hide_code=True)
 def _(SNAPS, compare_combinations_by, compare_pixel_by_pixel_diff):
     compare_combinations_by(
@@ -865,26 +855,26 @@ def _(SNAPS, json, metrics, os, pathlib, pd, random, shutil, subprocess):
 
         def dir_size(dir):
             return { "dir_size": get_size(dir) }
-    
+
         def git_dir_size(dir):
             return { "git_dir_size": get_size(dir + "/" + ".git") }
-    
+
         def git_sizer(dir):
             output = run("git-sizer", "--json", "--no-progress", at=dir)
             data = json.loads(output.stdout)
             return data
-    
+
         def git_counters(dir):
             output = run("git", "count-objects", "-v", at=dir)
             lines = output.stdout.strip().split("\n")
             stats = {}
-    
+
             for line in lines:
                 key, value = line.split(":")
                 stats["git_counter_" + key.strip()] = value.strip()
-    
+
             return stats
-    
+
         metrics = [
             dir_size,
             git_dir_size,
@@ -897,7 +887,7 @@ def _(SNAPS, json, metrics, os, pathlib, pd, random, shutil, subprocess):
             metrics_result = metrics_result | metric(dir)
 
         return metrics_result
-    
+
 
     def run_git_snapshot_simulation(
         snaps=SNAPS,
@@ -998,10 +988,10 @@ def _(SNAPS, json, metrics, os, pathlib, pd, random, shutil, subprocess):
             if exp.get("init_lfs"):
                 run("git", "lfs", "install", at=exp_dir)
                 run("git", "lfs", "track", "__Snapshots__/**", at=exp_dir)
-    
+
                 lfs_path = os.path.abspath(exp_dir + ".lfs")
                 os.makedirs(lfs_path, exist_ok=True)
-    
+
                 run("git", "config", "--add", "lfs.customtransfer.lfs-folder.path", "lfs-folderstore", at=exp_dir)
                 run("git", "config", "--add", "lfs.standalonetransferagent", "lfs-folder", at=exp_dir)
                 run("git", "config", "--add", "lfs.customtransfer.lfs-folder.args", lfs_path, at=exp_dir)
@@ -1018,12 +1008,12 @@ def _(SNAPS, json, metrics, os, pathlib, pd, random, shutil, subprocess):
             def mutate_binary(file_path):
                 with open(file_path, 'rb') as f:
                     data = bytearray(f.read())
-        
+
                 index = random.randint(8, len(data) - 1)
 
                 bit_to_flip = 1 << random.randint(0, 7)
                 data[index] ^= bit_to_flip
-        
+
                 with open(file_path, 'wb') as f:
                     f.write(data)
 
@@ -1031,7 +1021,7 @@ def _(SNAPS, json, metrics, os, pathlib, pd, random, shutil, subprocess):
                 shutil.copy2(snapshot, to_dir)
                 mutate_binary(to_dir + "/" + os.path.basename(snapshot))
 
-            
+
 
         def cherry_pick(dir, commit):
             run("git", "force-cherry-pick", commit, check=False, at=dir)
@@ -1063,7 +1053,7 @@ def _(SNAPS, json, metrics, os, pathlib, pd, random, shutil, subprocess):
                 snapshots = snaps["Snapshot"].sample(n=snapshots_count).tolist()
                 commits_to_add = original_commits[:commits_count]
                 original_commits = original_commits[commits_count:]
-            
+
                 for exp in exps:
                     exp_name = exp["name"]
                     exp_dir = exps_dir + "/" + exp_name
@@ -1106,7 +1096,7 @@ def _(SNAPS, json, metrics, os, pathlib, pd, random, shutil, subprocess):
 
 @app.cell
 def _(pd, size_test_metrics):
-    GIT_EXPERIMENTS_METRICS = pd.read_json("/tmp/SnapshotExperiments/output.json")
+    GIT_EXPERIMENTS_METRICS = pd.read_json("git_metrics_output.json")
     GIT_SIZE_TEST_METRICS = size_test_metrics()
 
     GIT_METRICS = pd.concat([GIT_EXPERIMENTS_METRICS, GIT_SIZE_TEST_METRICS])
