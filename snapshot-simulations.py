@@ -3,20 +3,46 @@
 import marimo
 
 __generated_with = "0.13.0"
-app = marimo.App(width="medium", app_title="Snapshot тестирование")
+app = marimo.App(
+    width="medium",
+    app_title="Snapshot тестирование",
+    auto_download=["html"],
+)
 
 
 @app.cell(hide_code=True)
 def _():
     import os
     import re
+    import tempfile
+    import shutil
+    import subprocess
+    import json
+    import pathlib
+    import random
     import marimo as mo
     import pandas as pd
     import PIL as pl
+    import plotly.express as px
     import numpy as np
     import itertools
     import xml.etree.ElementTree as ET
-    return ET, itertools, mo, np, os, pd, pl, re
+    return (
+        ET,
+        itertools,
+        json,
+        mo,
+        np,
+        os,
+        pathlib,
+        pd,
+        pl,
+        px,
+        random,
+        re,
+        shutil,
+        subprocess,
+    )
 
 
 @app.cell(hide_code=True)
@@ -136,14 +162,14 @@ def _(mo):
 
         В чистом виде тесты на ней выглядят вот так
 
-        ```swift
+        `swift
             func testWithSnapshotTesting() {
                 let view = Button(label: "Label")
                     .style(.contrast)
 
                 assertSnapshot(of: view, as: .image(/*доп настройки, если нужны*/))
             }
-        ```
+        `
 
         ### Доп. идеи <span style="color: blue;">::ph:sparkle-duotone::</span>
 
@@ -159,22 +185,22 @@ def _(mo):
     mo.md(
         r"""
         ## Пишем тесты
-        Были выбранны компоненты `Text`, `Button`, `Input`, `Chips` и `Select`.
+        Были выбранны компоненты TextText, BuonButton, InputInput, ChipsChips и Se≤ctSelect.
 
-        ### Тесты под компоненты-вьюхи (`Text`, `Button`, `Input`, `Chips`)
+        ### Тесты под компоненты-вьюхи (TextText, BuonButton, InputInput, ChipsChips)
 
         - Обычный UnitTest в модуле DesignSystem
         - Большое количество инвариантов поэтому пришлось накатать небольшую DSL'ку
-            ```swift
+            `swift
             SnapshotConfigurationSet()
                 .all(\.property, in: ["id1": value1, "id2": value2]) // В полном виде
                 .all(\.property2) // Для простых случаев когда по всем кейсам можно пройтись автоматически
                 .allThemes() // Для популярных можно добавить кастомные
-            ```
+            `
         - Каждый параметр кратно умножает количество снапшотов, поэтому нужно быть аккуратнее, группировать параметры в отдельные тесты по смыслу (layout, colors, someSpecificCase)
         - id для значений нужен чтобы отличать снапшоты друг от друга
 
-        ```swift
+        `swift
             func testButtonLayout() {
                 assertSnapshots(
                     of: Button(label: "Label", icon: Images.icon.bellFilled.size24),
@@ -201,14 +227,14 @@ def _(mo):
                         .all(\.$isDisabled)
                 )
             }
-        ```
+        `
 
         ### Результат
         <img src="public/snapshot_output.png">
 
         ### Нюансы <span style="color: red;">::ph:warning-duotone::</span>
 
-        - swift-snapshot-testing содержит `#canImport(Testing)` который true, из-за этого таргет начинает ожидать Testing.xcframework и падать с `missing required framework`. Причем в UnitTest'ах работает без этой проблемы, а в UITest'ах починить не смог. Пока как воркэрануд - форкнул и поубирал поддержку Swift Testing. Но возможно получится наколдовать что-то на уровне tuist'а
+        - swift-snapshot-testing содержит #canImport(Test∈g)#canImport(Testing) который true, из-за этого таргет начинает ожидать Testing.xcframework и падать с missingrequiredameworkmissing required framework. Причем в UnitTest'ах работает без этой проблемы, а в UITest'ах починить не смог. Пока как воркэрануд - форкнул и поубирал поддержку Swift Testing. Но возможно получится наколдовать что-то на уровне tuist'а
         - Нативный sizeThatFit работает странновато, некоторые компоненты нелогичного размера. Возможно баг в самих компонентах. Так же можно брать size из ManualComponent и переопределять
         - Сейчас компонент тестируется как SwiftUI вьюха с дефолтным контекстом, возможно правильнее будет тестировать компонент с полноценно настроенным контекстом
 
@@ -224,12 +250,12 @@ def _(mo):
 def _(mo):
     mo.md(
         r"""
-        ### Тесты под компоненты-экраны (`Select`)
+        ### Тесты под компоненты-экраны (Se≤ctSelect)
 
         - UITest в UITests/Main
         - Работает через системный XCUIScreenshotProviding который просто делает скриншоты
         - Напрямую swift-snapshot-testing не поддерживает UITest'ы, но легко добавить парой экстеншнов
-        ```swift
+        `swift
         extension PageObject {
             @discardableResult
             public func assertSnapshot<Element: XCUIScreenshotProviding>(
@@ -245,9 +271,9 @@ def _(mo):
                 ...
             ) { ... }
         }
-        ```
+        `
         - Количество снапшотов небольшое, но нужно их именовать и отличать
-        ```swift
+        `swift
         import SnapshotTesting
         import UITesting
         import XCTest
@@ -278,7 +304,7 @@ def _(mo):
                 application.windows.firstMatch.assertSnapshot("Open select screen")
             }
         }
-        ```
+        `
 
         ### Результат
         <img src="public/screen_snapshot_output.png">
@@ -331,7 +357,7 @@ def _(DATA_DIR, ET, os, pd, re):
         with open(path, encoding="utf-8") as f:
             text = f.read()
 
-        pattern = r'^\s*([\w\s\(\)-]+):\s+(.+)$'
+        pattern = r'^\s*([\w\s-]+):\s+(.+)$'
         matches = re.findall(pattern, text, re.MULTILINE)
         return dict(matches)
 
@@ -570,7 +596,7 @@ def _(diff_by_commits, mo):
         mo.md("""
         ## Разница по коммитам
         Затем чтобы проверить флакование - сравниваем как снапшоты изменяются во времени.
-    
+
         В таблице - суммарное количество отличающихся пикселей (со всех 5 машин!). Метод сравнивания пикселей тут без допуска - должно совпадать 1 к 1.
         """),
         mo.ui.table(data=diff_by_commits.groupby("Component").sum()),
@@ -771,7 +797,7 @@ def _(SNAPS, os):
 
     def format_size(bytes):
         for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
-            if bytes < 1024:
+            if abs(bytes) < 1024:
                 return f"{bytes:.2f} {unit}"
             bytes /= 1024
 
@@ -821,6 +847,339 @@ def _(mo):
         // TODO
         """
     )
+    return
+
+
+@app.cell
+def _(SNAPS, json, metrics, os, pathlib, pd, random, shutil, subprocess):
+    def run(*cmd, at=None, expected_statuses=[], check=True):
+        print("     > " + " ".join(cmd))
+        output = subprocess.run(cmd, cwd=at, capture_output=True, text=True, check=check)
+        if output.returncode != 0:
+            print(f"    ! Failed status {output.returncode}:\n {output.stderr}")
+        return output
+
+    def collect_metrics(dir):
+        def get_size(path):
+            return sum(p.stat().st_size for p in pathlib.Path(path).rglob('*'))
+
+        def dir_size(dir):
+            return { "dir_size": get_size(dir) }
+    
+        def git_dir_size(dir):
+            return { "git_dir_size": get_size(dir + "/" + ".git") }
+    
+        def git_sizer(dir):
+            output = run("git-sizer", "--json", "--no-progress", at=dir)
+            data = json.loads(output.stdout)
+            return data
+    
+        def git_counters(dir):
+            output = run("git", "count-objects", "-v", at=dir)
+            lines = output.stdout.strip().split("\n")
+            stats = {}
+    
+            for line in lines:
+                key, value = line.split(":")
+                stats["git_counter_" + key.strip()] = value.strip()
+    
+            return stats
+    
+        metrics = [
+            dir_size,
+            git_dir_size,
+            git_counters,
+            git_sizer
+        ]
+
+        metrics_result = {}
+        for metric in metrics:
+            metrics_result = metrics_result | metric(dir)
+
+        return metrics_result
+    
+
+    def run_git_snapshot_simulation(
+        snaps=SNAPS,
+        working_dir="/tmp/SnapshotExperiments",
+        output="Data/git_simulations.csv",
+        runs_count = 30,
+        snapshots_count = 200,
+        commits_count = 30,
+        exps=[
+            { 
+                "name": "OriginalRepository", 
+                "with_snapshots": False, 
+                "with_commits": True 
+            },
+            {
+                "name": "SnapshotsInGit", 
+                "with_snapshots": True, 
+                "with_commits": True 
+            },
+            { 
+                "name": "SnapshotsInLFS",
+                "init_lfs": True,
+                "with_snapshots": True,
+                "with_commits": True 
+            },
+            { 
+                "name": "OnlySnapshotsInGit", 
+                "with_snapshots": True,
+                "with_commits": False 
+            },
+        ]
+    ):
+        """
+        Для подготовки
+
+            export BEGIN_COMMIT=49ffd59953d
+            export END_COMIMIT=f781db47392
+
+            mkdir -p "tmp/SnapshotExperiments"
+            cd "tmp/SnapshotExperiments"
+
+            # Подготовка Source
+            git clone git@forgejo.pyn.ru:hhru/ios-apps.git Source
+            (cd Source && git branch snapshot-tests/begin $BEGIN_COMMIT)
+            (cd Source && git branch snapshot-tests/end $END_COMMIT)
+            (cd Source && git rev-list --reverse snapshot-tests/end ^snapshot-tests/begin) > commits.txt
+
+
+            # Подготовка WithoutSnapshots (полная копия репозитория)
+            git clone file://$(realpath Source) --branch snapshot-tests/begin WithoutSnapshots
+
+            # Подготовка WithGit (shallow copy от snapshot-tests/begin)
+            git clone file://$(realpath Source) --branch snapshot-tests/begin WithGit
+
+            # Подготовка WithLFS (shallow copy от snapshot-tests/begin c LFS)
+            git clone file://$(realpath Source) WithLFS --branch snapshot-tests/begin --depth 1
+            mkdir -p WithLFS.lfs
+
+            (cd WithLFS && git lfs install)
+            (cd WithLFS && git lfs track "__Snapshots__/**")
+            (cd WithLFS && git config --add lfs.customtransfer.lfs-folder.path lfs-folderstore)
+            (cd WithLFS && git config --add lfs.standalonetransferagent lfs-folder)
+            (cd WithLFS && git config --add lfs.customtransfer.lfs-folder.args $(realpath ../WithLFS.lfs))
+
+
+            # git-force-cherry-pick
+            git cherry-pick $1 --no-commit || (
+              echo "Conflict — auto-resolving with cherry-pick's changes (theirs)"
+              for file in $(git diff --name-only --diff-filter=U); do
+                if git show ":3:$file" >/dev/null 2>&1; then
+                  git checkout --theirs -- "$file"
+                  git add "$file"
+                else
+                  git rm --cached --quiet --ignore-unmatch "$file"
+                  rm -f "$file"
+                fi
+              done
+            )
+        """
+
+        def prepare_exps_dir():
+            print("  -- Prepearing exps dir")
+            exps_dir = working_dir + "/Exps"
+            if os.path.exists(exps_dir):
+                shutil.rmtree(exps_dir)
+            os.makedirs(exps_dir, exist_ok=True)
+            return exps_dir
+
+        def init_repo(exp):
+            name = exp["name"]
+            print(f"  -- Init repo for exp {name}")
+
+            exps_dir = working_dir + "/Exps"
+            exp_dir = exps_dir + "/" + exp["name"]
+            source_git_url = "file://" + os.path.abspath(working_dir + "/Source")
+            run("git", "clone", source_git_url, "--branch", "snapshot-tests/begin", exp["name"], at=exps_dir)
+
+            if exp.get("init_lfs"):
+                run("git", "lfs", "install", at=exp_dir)
+                run("git", "lfs", "track", "__Snapshots__/**", at=exp_dir)
+    
+                lfs_path = os.path.abspath(exp_dir + ".lfs")
+                os.makedirs(lfs_path, exist_ok=True)
+    
+                run("git", "config", "--add", "lfs.customtransfer.lfs-folder.path", "lfs-folderstore", at=exp_dir)
+                run("git", "config", "--add", "lfs.standalonetransferagent", "lfs-folder", at=exp_dir)
+                run("git", "config", "--add", "lfs.customtransfer.lfs-folder.args", lfs_path, at=exp_dir)
+
+        def add_salt(dir, salt):
+            print(" -- Add salt")
+            with open(dir + "/salt.txt", "a") as f:
+                f.write(salt + "\n")
+
+        def generate_snapshots(to_dir, snapshots):
+            print(f"  -- Copy snapshots {len(snapshots)}")
+            os.makedirs(to_dir, exist_ok=True)
+
+            def mutate_binary(file_path):
+                with open(file_path, 'rb') as f:
+                    data = bytearray(f.read())
+        
+                index = random.randint(8, len(data) - 1)
+
+                bit_to_flip = 1 << random.randint(0, 7)
+                data[index] ^= bit_to_flip
+        
+                with open(file_path, 'wb') as f:
+                    f.write(data)
+
+            for snapshot in snapshots:
+                shutil.copy2(snapshot, to_dir)
+                mutate_binary(to_dir + "/" + os.path.basename(snapshot))
+
+            
+
+        def cherry_pick(dir, commit):
+            run("git", "force-cherry-pick", commit, check=False, at=dir)
+            run("git", "checkout", "--theirs",  ".", at=dir)
+            add_salt(dir, commit)
+            run("git", "add", ".", at=dir)
+            run("git", "commit", "-m", commit, at=dir)
+
+        original_commits = []
+        with open(working_dir + "/commits.txt", "r") as f:
+            original_commits = [line.strip() for line in f]
+
+        print(f"Prepearing")
+        print("---")
+        print(f"  -- Found {len(original_commits)} original commits")
+
+        exps_dir = prepare_exps_dir()
+        for exp in exps:
+            init_repo(exp)
+
+        with open(working_dir + "/output.json", "w") as out:
+            comma = ""
+            out.write("[\n")
+            for run_index in range(runs_count):
+                print()
+                print(f"Run {run_index}")
+                print("---")
+
+                snapshots = snaps["Snapshot"].sample(n=snapshots_count).tolist()
+                commits_to_add = original_commits[:commits_count]
+                original_commits = original_commits[commits_count:]
+            
+                for exp in exps:
+                    exp_name = exp["name"]
+                    exp_dir = exps_dir + "/" + exp_name
+
+                    print(f" | Exp {exp_name}")
+
+                    metrics_result = {"Num": run_index, "Exp": exp_name } | collect_metrics(metrics)
+
+                    json_output = comma + json.dumps(metrics_result) + "\n"
+                    out.write(json_output)
+
+                    if exp["with_commits"]:
+                        for commit in commits_to_add:
+                            print(f" -- Cherry pick {commit}")
+                            cherry_pick(exp_dir, commit)
+
+                    if exp["with_snapshots"]:
+                        generate_snapshots(exp_dir + "/__Snapshots__", snapshots)
+                        run("git", "add", ".", at=exp_dir)
+                        run("git", "commit", "-m", "Snapshots", at=exp_dir, check=False)
+
+                    comma = ","
+
+            out.write("]\n")
+
+        print("===")
+        print(f"Finished!")
+        print("---")
+
+
+
+    # run_git_snapshot_simulation()
+
+    def size_test_metrics():
+        origin_size_metrics = {"Num": 0, "Exp": "SizeTestOrigin"} | collect_metrics("/tmp/SnapshotExperiments/SizeTestOrigin")
+        year_ago_size_metrics = {"Num": 0, "Exp": "SizeTestYearAgo"} | collect_metrics("/tmp/SnapshotExperiments/SizeTestYearAgo")
+        return pd.DataFrame([origin_size_metrics, year_ago_size_metrics])
+    return (size_test_metrics,)
+
+
+@app.cell
+def _(pd, size_test_metrics):
+    GIT_EXPERIMENTS_METRICS = pd.read_json("/tmp/SnapshotExperiments/output.json")
+    GIT_SIZE_TEST_METRICS = size_test_metrics()
+
+    GIT_METRICS = pd.concat([GIT_EXPERIMENTS_METRICS, GIT_SIZE_TEST_METRICS])
+    GIT_METRICS
+    return (GIT_METRICS,)
+
+
+@app.cell
+def _(GIT_METRICS, format_size, pd):
+    metric_candidates = [col for col in GIT_METRICS.columns if col not in ['Num', 'Exp']]
+    GIT_NUM_METRICS = [
+        col for col in metric_candidates
+        if pd.api.types.is_numeric_dtype(GIT_METRICS[col].iloc[0])
+    ]
+
+    GIT_SIZE_METRICS = [
+        col for col in GIT_NUM_METRICS
+        if "size" in col
+    ]
+
+    def format_size_metrics(df=GIT_METRICS):
+        df = df.copy()
+        df[GIT_SIZE_METRICS] = df[GIT_SIZE_METRICS].map(format_size)
+        return df
+    return GIT_NUM_METRICS, format_size_metrics
+
+
+@app.cell
+def _(format_size_metrics):
+    format_size_metrics()
+    return
+
+
+@app.cell
+def _(GIT_NUM_METRICS, mo):
+    metric_name_dropdown = mo.ui.dropdown(options=GIT_NUM_METRICS, label="Git property")
+    return (metric_name_dropdown,)
+
+
+@app.cell
+def _(GIT_METRICS, metric_name_dropdown, mo, px):
+    mo.vstack([
+        mo.md("## Метрики со всех экспериментов"),
+        metric_name_dropdown,
+        mo.ui.plotly(px.line(GIT_METRICS, x="Num", y=metric_name_dropdown.value, color="Exp", markers=True, range_y=[0, None]))
+    ])
+    return
+
+
+@app.cell
+def _(GIT_METRICS, GIT_NUM_METRICS, format_size_metrics, pd):
+    def git_compare(exp1, exp2, metrics = GIT_NUM_METRICS, cmp = lambda l, r: l - r):
+        p = GIT_METRICS.pivot(index="Num", columns="Exp", values=metrics)
+        diffs = {}
+        for metric in metrics:
+            diffs[metric] = cmp(p[(metric, exp1)], p[(metric, exp2)])
+        return pd.DataFrame(diffs)
+
+    size_report = format_size_metrics(git_compare("SnapshotsInGit","OriginalRepository"))
+    size_report.iloc[-1]
+    return (git_compare,)
+
+
+@app.cell
+def _(git_compare):
+    rel_comp = git_compare("SnapshotsInGit","OriginalRepository", cmp=lambda l, r: (l - r) / l * 100)
+    rel_comp.iloc[-1]
+    return
+
+
+@app.cell
+def _(format_size_metrics, git_compare):
+    format_size_metrics(git_compare("SizeTestOrigin","SizeTestYearAgo"))
     return
 
 
